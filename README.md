@@ -1,55 +1,87 @@
-
 # Amazon Recommendation System - Lab
 
 ## Introduction
 
-Now that you've gotten an introduction to collaborative filtering and recommendation systems, it's time to put your skills to test and build a recommendation system for a real world dataset! For this lab, you'll be using a dataset regarding the book reviews on the Amazon marketplace. While the previous lesson focused on user-based recommendation systems, you'll apply a parallel process for an item-based recommendation system to recommend similar books at the bottom of the product page.
+This lab walks through building an **item-based** collaborative filtering recommendation system using an Amazon books dataset.[file:11] You will represent books as nodes in a graph, connect them with weighted edges based on co-purchase information, and then generate recommendations from graph-based similarity.[file:11]
 
 ## Objectives
 
-In this lab you will: 
+In this lab you will:
 
-- Use graph-based similarity metrics to create a collaborative filtering recommender system
+- Load an edge list of co-purchased books into a NetworkX graph and inspect the structure.
+- Load and explore book metadata, including title, categories, ratings, and centrality measures.
+- Select a subset of books of interest to test the recommender system.
+- Use graph-based similarity (edge weights and neighborhood relationships) to produce item-item recommendations.
+- Generate and display the top 10 recommended books for selected titles using the precomputed edge weights.
 
 ## Load the Dataset
 
+You start by importing the required libraries, creating an undirected graph, and loading the edge list file `books_data.edgelist`, which encodes book-to-book connections and their weights (strength of co-purchase similarity). The first few rows show `source`, `target`, and `weight` columns for pairs of related books.
 
-```python
 import pandas as pd
 import networkx as nx
 G = nx.Graph()
 
 df = pd.read_csv('books_data.edgelist', names=['source', 'target', 'weight'], delimiter=' ')
 df.head()
-```
 
 ## Load the Metadata 
 
-Import the metadata available in the file `'books_meta.txt'` (note it is `'\t'` seperated). 
+You then import the book metadata from `books_meta.txt`, which is tab-separated and contains fields such as `ASIN`, `Title`, `Categories`, `Group`, `SalesRank`, `TotalReviews`, `AvgRating`, `DegreeCentrality`, and `ClusteringCoeff`.[file:11] This metadata will be used later to display human-readable book information for recommendations.
 
+meta = pd.read_csv('books_meta.txt', sep='\t')
+meta.head()
 
-```python
-# Your code here
-```
+text
+
+## Build the Graph
+
+Using the edge list, you add weighted edges to the NetworkX graph so each node represents a book (identified by its ASIN) and each edge weight reflects similarity between two books. This graph structure is the backbone of the item-based collaborative filtering system.
+
+for _, row in df.iterrows():
+G.add_edge(row['source'], row['target'], weight=row['weight'])
+
+text
 
 ## Select Books to Test Your Recommender On
 
-Select a small subset of books that you are interested in generating recommendations for. 
+Next, you select a small subset of books that you want to generate recommendations for, often by choosing a few ASINs or titles from the metadata. This subset serves as the query set on which you will run the recommender and inspect the results.
 
+Example: select by ASIN or title
+test_books = meta.sample(3)['ASIN'].tolist()
+test_books
 
-```python
-# Your code here
-```
+text
+
+## Helper Functions for Lookup
+
+To make the output readable, you typically write helper functions that map between ASINs and titles using the metadata DataFrame. This lets you print recommendations using book names instead of just IDs.
+
+asin_to_title = dict(zip(meta['ASIN'], meta['Title']))
+
+def get_title(asin):
+return asin_to_title.get(asin, asin)
+
 
 ## Generate Recommendations for a Few Books of Choice
 
-The `'books_data.edgelist'` has conveniently already calculated the distance between items for you. Given this preprocessed data, it's time to employ collaborative filtering to generate recommendations! Generate the top 10 recommendations for each book in the subset you chose. Be sure to print the book name that you are generating recommendations for as well as the name of the books being recommended. 
+The file `books_data.edgelist` already contains similarity information as weights, so you can use the graph to find the most strongly connected neighbors for each selected book. For each book in your subset, you retrieve its neighbors, sort them by edge weight in descending order, and print the top 10 recommended books by title.
 
+def get_recommendations(asin, top_n=10):
+# Get neighbors and weights
+neighbors = G[asin]
+scored = [(nbr, neighbors[nbr]['weight']) for nbr in neighbors]
+scored = sorted(scored, key=lambda x: x, reverse=True)[:top_n]
+​
+return scored
 
-```python
-# Your code here
-```
+for asin in test_books:
+print(f"\nRecommendations for: {get_title(asin)} ({asin})")
+recs = get_recommendations(asin, top_n=10)
+for rec_asin, w in recs:
+print(f" -> {get_title(rec_asin)} ({rec_asin}) | similarity: {w}")
+
 
 ## Summary
 
-Well done! In this lab, you effectively created a recommendation system for a real world dataset!
+In this lab, you use graph-based collaborative filtering to recommend similar Amazon books based on co-purchase data.[file:11] By combining a weighted item-item graph with rich metadata, you generate and interpret top-N recommendations for selected titles.
